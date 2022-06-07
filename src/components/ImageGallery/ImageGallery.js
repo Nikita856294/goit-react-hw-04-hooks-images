@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { ImageList } from './ImageGalleryStyled';
 import ImageGalleryItem from '../ImageGalleryItem';
@@ -9,101 +9,89 @@ import { toast } from 'react-toastify';
 import Modal from '../Modal/Modal';
 import 'react-toastify/dist/ReactToastify.css';
 
-class ImageGallery extends Component {
-  state = {
-    images: [],
-    error: null,
-    page: 1,
-    per_page: 24,
-    showModal: false,
-    status: 'idle',
-    imageModal: null,
-  };
-  async componentDidUpdate(prevProps, prevState) {
-    const prevImage = prevProps.image;
-    const nextImage = this.props.image;
-    if (prevImage !== nextImage) {
-      this.setState({ status: 'pending' });
+export const ImageGallery = ({ image }) => {
+  const [images, setImages] = useState([]);
+  // eslint-disable-next-line
+  const [error, setError] = useState(null);
+  // eslint-disable-next-line
+  const [page, setPage] = useState(1);
+  const [per_page, setPer_Page] = useState(24);
+  const [showModal, setShowModal] = useState(false);
+  const [status, setStatus] = useState('idle');
+  const [imageModal, setImageModal] = useState(null);
 
+  useEffect(() => {
+    if (image === '') {
+      return;
+    }
+
+    const fetch = async () => {
       try {
-        const images = await fetchImages(this.props.image).then(images => {
+        const images = await fetchImages(image).then(images => {
           if (images.length === 0) {
             toast.error('Введите корректный запрос');
           }
-          this.setState({ status: 'resolved' });
+          setStatus('resolved');
           return images;
         });
-        this.setState({ images });
+
+        setImages(images);
       } catch (error) {
-        this.setState({ error, status: 'rejected' });
+        setStatus('rejected');
       }
-    }
-  }
+    };
+    fetch();
+  }, [image]);
+  const handleClick = async e => {
+    setPage(prevState => prevState + 1);
+    setPer_Page(prevState => prevState + 12);
 
-  handleClick = async e => {
-    this.setState(prevState => {
-      return {
-        page: prevState.page + 1,
-        per_page: prevState.per_page + 12,
-      };
-    });
-
-    const images = await fetchImages(this.props.image, this.state.per_page);
-    this.setState({ images });
+    const images = await fetchImages(image, per_page);
+    setImages(images);
   };
-  toggleModal = (largeImageURL, tags) => {
-    this.setState(({ showModal }) => {
-      return { showModal: !showModal };
-    });
-    this.setState({
-      imageModal: {
-        largeImageURL,
-        tags,
-      },
-    });
+  const toggleModal = (largeImageURL, tags) => {
+    setShowModal(!showModal);
+    setImageModal({ largeImageURL, tags });
   };
 
-  render() {
-    const { images, showModal, imageModal, status, error } = this.state;
-
-    if (status === 'idle') {
-      return <div></div>;
-    }
-    if (status === 'pending') {
-      return <TailSpin height={80} width={80} />;
-    }
-    if (status === 'rejected') {
-      return <p>Whoops, something went wrong: {error.message}</p>;
-    }
-
-    if (status === 'resolved') {
-      return (
-        <div>
-          <ImageList>
-            {images.map(images => (
-              <ImageGalleryItem
-                key={images.id}
-                images={images}
-                showModal={this.toggleModal}
-              />
-            ))}
-          </ImageList>
-          {images.length > 0 && <LoadMore onClick={this.handleClick} />}
-          {showModal && (
-            <Modal toggleModal={this.toggleModal}>
-              <img
-                src={imageModal.largeImageURL}
-                alt={imageModal.tags}
-                width="100"
-                height="100"
-              />
-            </Modal>
-          )}
-        </div>
-      );
-    }
+  if (status === 'idle') {
+    return <div></div>;
   }
-}
+  if (status === 'pending') {
+    return <TailSpin height={80} width={80} />;
+  }
+  if (status === 'rejected') {
+    return <p> Went wrong something</p>;
+  }
+
+  if (status === 'resolved') {
+    return (
+      <div>
+        <ImageList>
+          {images.map(images => (
+            <ImageGalleryItem
+              key={images.id}
+              images={images}
+              showModal={toggleModal}
+            />
+          ))}
+        </ImageList>
+        {images.length > 0 && <LoadMore onClick={handleClick} />}
+        {showModal && (
+          <Modal toggleModal={toggleModal}>
+            <img
+              src={imageModal.largeImageURL}
+              alt={imageModal.tags}
+              width="100"
+              height="100"
+            />
+          </Modal>
+        )}
+      </div>
+    );
+  }
+};
+
 export default ImageGallery;
 
 ImageGallery.propTypes = {
